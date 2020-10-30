@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 
 from .models import Category, Comment, Genre, Review, Title, User
 
@@ -52,18 +51,22 @@ class TitleWriteSerializer(TitleReadSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
-        read_only=True,
-        slug_field='username'
+        slug_field='username', read_only=True
     )
 
-    text = serializers.SlugField(
-        max_length=100,
-        validators=[UniqueValidator(queryset=Review.objects.all())]
-    )
+    def validate(self, data):
+        title = self.context.get('title')
+        request = self.context.get('request')
+        if (
+            request.method != 'PATCH' and
+            Review.objects.filter(title=title, author=request.user).exists()
+        ):
+            raise serializers.ValidationError('Score already exists')
+        return data
 
     class Meta:
-        fields = '__all__'
         model = Review
+        fields = '__all__'
         extra_kwargs = {'title': {'required': False}}
 
 
